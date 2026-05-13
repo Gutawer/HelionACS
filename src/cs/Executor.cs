@@ -53,6 +53,11 @@ public readonly ref struct ThreadHandle
             return threadInfo;
         }
     }
+    public void PushStack(uint value) {
+        unsafe {
+            Interop.Methods.PushThreadStack(m_ptr, value);
+        }
+    }
 }
 
 public abstract class Executor {

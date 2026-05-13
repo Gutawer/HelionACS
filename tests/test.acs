@@ -28,3 +28,8 @@ script "UsesTagWait" (void) {
     TagWait(10);
     Print(s:"Post-wait");
 }
+script "UsesRandom" (void) {
+    Print(i:Random(0, 7));
+    Print(i:Random(4, 15));
+    Print(i:Random(-5, 12));
+}

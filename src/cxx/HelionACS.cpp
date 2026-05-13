@@ -273,7 +273,6 @@ void MakeThreadTagWait(ACSVM::Thread *thread, ACSVM::Word type, ACSVM::Word tag)
     thread->state = { ACSVM::ThreadState::WaitTag, tag, type };
 }
 void GetThreadPrintBuffer(ACSVM::Thread* thread, const char** buf, std::size_t* length) {
-    std::cout << std::format("buf: {:x}", (std::size_t)buf) << std::endl;
     if (thread->printBuf.size() != 0) {
         *buf = thread->printBuf.data();
     } else {
@@ -286,4 +285,7 @@ void* GetThreadContext(ACSVM::Thread* thread) {
 }
 void* GetThreadThreadInfoData(ACSVM::Thread* thread) {
     return static_cast<const VoidPointerThreadInfo*>(thread->getInfo())->data;
+}
+void PushThreadStack(ACSVM::Thread *thread, ACSVM::Word value) {
+    thread->dataStk.push(value);
 }

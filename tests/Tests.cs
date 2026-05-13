@@ -6,9 +6,11 @@ namespace Tests;
 
 class MyExecutor : HelionACS.Executor {
     public MyExecutor() {
-        AddCodeDataACS0(61, "",  1, CF_TagWait);
-        AddCodeDataACS0(62, "W", 0, CF_TagWait);
-        AddCodeDataACS0(86, "",  0, CF_EndPrint);
+        AddCodeDataACS0(57, "",   2, CF_Random);
+        AddCodeDataACS0(58, "WW", 0, CF_Random);
+        AddCodeDataACS0(61, "",   1, CF_TagWait);
+        AddCodeDataACS0(62, "W",  0, CF_TagWait);
+        AddCodeDataACS0(86, "",   0, CF_EndPrint);
     }
 
     public override byte[] LoadModule(string moduleName) {
@@ -32,6 +34,19 @@ class MyExecutor : HelionACS.Executor {
     public List<uint> ranLineSpecials = [];
     public List<uint[]> ranLineSpecialArgs = [];
 
+    public bool CF_Random(HelionACS.ThreadHandle thread, uint[] args) {
+        var min = (int)args[0];
+        var max = (int)args[1];
+        thread.PushStack(
+            (uint)((min, max) switch {
+                (0, 7) => 5,
+                (4, 15) => 8,
+                (-5, 12) => -2,
+                (_, _) => 0,
+            })
+        );
+        return false;
+    }
     public bool CF_EndPrint(HelionACS.ThreadHandle thread, uint[] args) {
         var _ = thread.GetThreadInfo();
         printBufferOutput.Add(thread.GetPrintBuf());
@@ -143,6 +158,16 @@ public class ExecutorTests
 
         Assert.True(executor.HasActiveThread()); executor.Exec();
         Assert.Equal(["Pre-wait", "Post-wait"], executor.printBufferOutput);
+
+        Assert.False(executor.HasActiveThread());
+    }
+
+    [Fact]
+    public void TestRandom()
+    {
+        Assert.True(executor.ScriptStart("UsesRandom", 0, 0, [], new object()));
+        Assert.True(executor.HasActiveThread()); executor.Exec();
+        Assert.Equal(["5", "8", "-2"], executor.printBufferOutput);
 
         Assert.False(executor.HasActiveThread());
     }

@@ -60,4 +60,5 @@ extern "C" {
     void GetThreadPrintBuffer(ACSVM::Thread* thread, const char** buf, std::size_t* length);
     void* GetThreadContext(ACSVM::Thread* thread);
     void* GetThreadThreadInfoData(ACSVM::Thread* thread);
+    void PushThreadStack(ACSVM::Thread* thread, ACSVM::Word value);
 }
