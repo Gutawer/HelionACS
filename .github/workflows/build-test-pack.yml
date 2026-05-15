@@ -50,12 +50,15 @@ jobs:
         include:
           - os: ubuntu-latest
             rid: linux-x64
+            libname-src: libHelionACS-native.so
             libname: libHelionACS-native.so
           - os: macos-latest
             rid: osx-x64
+            libname-src: libHelionACS-native.dylib
             libname: libHelionACS-native.dylib
           - os: windows-latest
             rid: win-x64
+            libname-src: Release/HelionACS-native.dll
             libname: HelionACS-native.dll
     runs-on: ${{ matrix.os }}
     steps:
@@ -66,18 +69,23 @@ jobs:
       - name: Install build tools (macOS)
         if: runner.os == 'macOS'
         run: brew install cmake ninja
-      - name: Install Ninja (Windows)
-        if: runner.os == 'Windows'
-        run: choco install ninja -y
-      - name: Configure CMake
+      - name: Configure CMake (Linux/macOS)
+        if: runner.os != 'Windows'
         run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-      - name: Build native
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+      - name: Build native (Linux/macOS)
+        if: runner.os != 'Windows'
         run: cmake --build build
+      - name: Build native (Windows)
+        if: runner.os == 'Windows'
+        run: cmake --build build --config Release
       - name: Copy built file
         shell: bash
         run: |
           mkdir -p build-native/${{ matrix.rid }}
-          cp build/${{ matrix.libname }} build-native/${{ matrix.rid }}/
+          cp build/${{ matrix.libname-src }} build-native/${{ matrix.rid }}/${{ matrix.libname }}
       - name: Upload native artifact
         uses: actions/upload-artifact@v4
         with:
