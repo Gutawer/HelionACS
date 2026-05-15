@@ -23,6 +23,10 @@ public enum ScriptType : uint {
     Reopen      = 18,
 };
 
+public struct ThreadInfoSerialized {
+    public int Activator;
+}
+
 public readonly ref struct ThreadHandle
 {
     private readonly unsafe Interop.Thread* m_ptr;
@@ -75,7 +79,14 @@ public abstract class Executor {
         unsafe {
             m_handles = [];
             var selfHandle = AddHandle(this);
-            m_executor = Interop.Methods.MakeExecutor(&LoadModuleCDecl, &CallSpecImplCDecl, &CheckTagCDecl, (void*)GCHandle.ToIntPtr(selfHandle));
+            var callbacks = new Interop.Callbacks {
+                loadModuleCallback = &LoadModuleCDecl,
+                callSpecImplCallback = &CallSpecImplCDecl,
+                checkTagCallback = &CheckTagCDecl,
+                serializeThreadInfoCallback = &SerializeThreadInfoCDecl,
+                deserializeThreadInfoCallback = &DeserializeThreadInfoCDecl,
+            };
+            m_executor = Interop.Methods.MakeExecutor(callbacks, (void*)GCHandle.ToIntPtr(selfHandle));
         }
     }
     ~Executor() {
@@ -130,6 +141,27 @@ public abstract class Executor {
         return self.CallSpecImpl(new ThreadHandle(thread), spec, args);
     }
     public abstract uint CallSpecImpl(ThreadHandle threadHandle, uint spec, uint[] args);
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    unsafe static Interop.ThreadInfoSerialized SerializeThreadInfoCDecl(void* context, void* threadInfoData) {
+        var self = GCHandle<Executor>.FromIntPtr((nint)context).Target;
+        var threadInfo = GCHandle.FromIntPtr((nint)threadInfoData).Target!;
+
+        var result = self.SerializeThreadInfo(threadInfo);
+        return new Interop.ThreadInfoSerialized { activator = result.Activator };
+    }
+    public abstract ThreadInfoSerialized SerializeThreadInfo(object threadInfo);
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    unsafe static void DeserializeThreadInfoCDecl(void* context, void* threadInfoData, Interop.ThreadInfoSerialized threadInfoSerialized) {
+        var self = GCHandle<Executor>.FromIntPtr((nint)context).Target;
+        var threadInfo = GCHandle.FromIntPtr((nint)threadInfoData).Target!;
+
+        var threadInfoSerializedSafe = new ThreadInfoSerialized { Activator = threadInfoSerialized.activator };
+
+        self.DeserializeThreadInfo(threadInfo, threadInfoSerializedSafe);
+    }
+    public abstract void DeserializeThreadInfo(object threadInfo, ThreadInfoSerialized threadInfoSerialized);
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     unsafe protected static void FreeDataCallback(void* data) {

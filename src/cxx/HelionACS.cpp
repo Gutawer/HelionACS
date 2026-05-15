@@ -8,9 +8,8 @@
 #include "ACSVM/ACSVM/CodeData.hpp"
 #include "ACSVM/ACSVM/Script.hpp"
 #include "ACSVM/ACSVM/Action.hpp"
+#include "src/cxx/ACSVM/ACSVM/Serial.hpp"
 #include <cstddef>
-#include <format>
-#include <iostream>
 #include <span>
 #include <string_view>
 
@@ -28,11 +27,12 @@ public:
 class ThreadImpl : public ACSVM::Thread {
 private:
     const VoidPointerThreadInfo* info = nullptr;
+    const Callbacks* callbacks;
 
 public:
     void* executorContext;
 
-    explicit ThreadImpl(ACSVM::Environment* env, void* executorContext) : ACSVM::Thread(env), info(nullptr), executorContext(executorContext) {}
+    explicit ThreadImpl(ACSVM::Environment* env, Callbacks* callbacks, void* executorContext) : ACSVM::Thread(env), info(nullptr), callbacks(callbacks), executorContext(executorContext) {}
 
     void start(ACSVM::Script *script, ACSVM::MapScope *map, const ACSVM::ThreadInfo *info, const ACSVM::Word *argV, ACSVM::Word argC) override {
         ACSVM::Thread::start(script, map, info, argV, argC);
@@ -48,30 +48,39 @@ public:
     const ACSVM::ThreadInfo* getInfo() const override {
         return this->info;
     }
+    void loadState(ACSVM::Serial &in) override {
+        ACSVM::Thread::loadState(in);
+        auto s = ThreadInfoSerialized {};
+        s.activator = ACSVM::ReadVLN<int32_t>(in);
+        this->callbacks->deserializeThreadInfoCallback(executorContext, info->data, s);
+    }
+    void saveState(ACSVM::Serial &out) const override {
+        ACSVM::Thread::saveState(out);
+        auto s = this->callbacks->serializeThreadInfoCallback(executorContext, info->data);
+        ACSVM::WriteVLN<int32_t>(out, s.activator);
+    }
 };
 
 class Env : public ACSVM::Environment {
 private:
-    LoadModuleCallback loadModuleCallback;
-    CallSpecImplCallback callSpecImplCallback;
-    CheckTagCallback checkTagCallback;
+    Callbacks callbacks;
     void* executorContext;
 public:
-    Env(LoadModuleCallback loadModuleCallback, CallSpecImplCallback callSpecImplCallback, CheckTagCallback checkTagCallback, void* executorContext)
-        : loadModuleCallback(loadModuleCallback), callSpecImplCallback(callSpecImplCallback), checkTagCallback(checkTagCallback), executorContext(executorContext) {}
+    Env(Callbacks callbacks, void* executorContext)
+        : callbacks(callbacks), executorContext(executorContext) {}
 
     void loadModule(ACSVM::Module *module) override {
-        auto data = this->loadModuleCallback(this->executorContext, module->name.s->str, module->name.s->len);
+        auto data = this->callbacks.loadModuleCallback(this->executorContext, module->name.s->str, module->name.s->len);
         module->readBytecode(data.data, data.length);
     }
     ACSVM::Word callSpecImpl(ACSVM::Thread *thread, ACSVM::Word spec, const ACSVM::Word *argV, ACSVM::Word argC) override {
-        return this->callSpecImplCallback(this->executorContext, thread, spec, argV, argC);
+        return this->callbacks.callSpecImplCallback(this->executorContext, thread, spec, argV, argC);
     }
     bool checkTag(ACSVM::Word type, ACSVM::Word tag) override {
-        return this->checkTagCallback(this->executorContext, type, tag);
+        return this->callbacks.checkTagCallback(this->executorContext, type, tag);
     }
     ACSVM::Thread * allocThread() override {
-        return new ThreadImpl(this, this->executorContext);
+        return new ThreadImpl(this, &this->callbacks, this->executorContext);
     }
 };
 
@@ -99,7 +108,7 @@ private:
     ACSVM::HubScope* currentHubScope = nullptr;
     ACSVM::MapScope* currentMapScope = nullptr;
 public:
-    Executor(LoadModuleCallback loadModuleCallback, CallSpecImplCallback callSpecImplCallback, CheckTagCallback checkTagCallback, void* executorContext) : env(loadModuleCallback, callSpecImplCallback, checkTagCallback, executorContext) {}
+    Executor(Callbacks callbacks, void* executorContext) : env(callbacks, executorContext) {}
 
     void LoadHubMap(ACSVM::Word hubId, ACSVM::Word mapId, std::span<const char*> moduleNames) {
         auto global = env.getGlobalScope(0); global->active = true;
@@ -207,8 +216,8 @@ ModuleData MakeModuleData(std::size_t length) {
     return ret;
 }
 
-Executor* MakeExecutor(LoadModuleCallback loadModuleCallback, CallSpecImplCallback callSpecImplCallback, CheckTagCallback checkTagCallback, void* executorContext) {
-    return new Executor(loadModuleCallback, callSpecImplCallback, checkTagCallback, executorContext);
+Executor* MakeExecutor(Callbacks callbacks, void* executorContext) {
+    return new Executor(callbacks, executorContext);
 }
 void LoadHubMap(
     Executor* executor,
