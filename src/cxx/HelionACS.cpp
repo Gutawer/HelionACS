@@ -8,7 +8,7 @@
 #include "ACSVM/ACSVM/CodeData.hpp"
 #include "ACSVM/ACSVM/Script.hpp"
 #include "ACSVM/ACSVM/Action.hpp"
-#include "src/cxx/ACSVM/ACSVM/Serial.hpp"
+#include "ACSVM/ACSVM/Serial.hpp"
 #include <cstddef>
 #include <span>
 #include <string_view>
