@@ -29,6 +29,10 @@ class MyExecutor : HelionACS.Executor {
         Assert.Equal(10u, tag);
         return !ShouldTagWait;
     }
+    public override void DeserializeThreadInfo(object threadInfo, HelionACS.ThreadInfoSerialized threadInfoSerialized) {}
+    public override HelionACS.ThreadInfoSerialized SerializeThreadInfo(object threadInfo) {
+        return new HelionACS.ThreadInfoSerialized { Activator = 0 };
+    }
 
     public readonly List<string> printBufferOutput = [];
     public List<uint> ranLineSpecials = [];

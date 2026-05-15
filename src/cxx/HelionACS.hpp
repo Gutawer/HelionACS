@@ -12,10 +12,23 @@ HELIONACS_API ModuleData MakeModuleData(std::size_t length);
 using LoadModuleCallback = ModuleData(*)(void* context, const char* path, std::size_t pathLength);
 using CallSpecImplCallback = ACSVM::Word(*)(void* context, ACSVM::Thread* thread, ACSVM::Word spec, const ACSVM::Word* argv, ACSVM::Word argc);
 using CheckTagCallback = bool(*)(void* context, ACSVM::Word type, ACSVM::Word tag);
+struct ThreadInfoSerialized {
+	int32_t activator;
+};
+using SerializeThreadInfoCallback = ThreadInfoSerialized (*)(void* context, const void* threadInfoData);
+using DeserializeThreadInfoCallback = void (*)(void* context, void* threadInfoData, ThreadInfoSerialized serialized);
+
+struct Callbacks {
+	LoadModuleCallback loadModuleCallback;
+	CallSpecImplCallback callSpecImplCallback;
+	CheckTagCallback checkTagCallback;
+	SerializeThreadInfoCallback serializeThreadInfoCallback;
+	DeserializeThreadInfoCallback deserializeThreadInfoCallback;
+};
 
 class Executor;
 
-HELIONACS_API Executor* MakeExecutor(LoadModuleCallback loadModuleCallback, CallSpecImplCallback callSpecImplCallback, CheckTagCallback checkTagCallback, void* executorContext);
+HELIONACS_API Executor* MakeExecutor(Callbacks callbacks, void* executorContext);
 using FreeCSThreadInfoData = void (*)(void* data);
 struct CSThreadInfo {
     void* data;
@@ -43,15 +56,6 @@ HELIONACS_API bool ScriptPauseNum(Executor* executor, ACSVM::Word num, ACSVM::Wo
 
 HELIONACS_API bool HasActiveThread(Executor* executor);
 HELIONACS_API void Exec(Executor* executor);
-
-struct CallFuncThreadData {
-    const char* printBufData;
-    std::size_t printBufSize;
-
-    void* threadInfoData;
-
-    void* context;
-};
 
 using CallFunc = bool (*)(void* funcContext, ACSVM::Thread *thread, ACSVM::Word const *argv, ACSVM::Word argc);
 HELIONACS_API ACSVM::Word AddCallFunc(Executor* executor, void* funcContext, CallFunc callFunc);
