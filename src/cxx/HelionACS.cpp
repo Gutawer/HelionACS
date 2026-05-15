@@ -9,10 +9,13 @@
 #include "ACSVM/ACSVM/Script.hpp"
 #include "ACSVM/ACSVM/Action.hpp"
 #include "ACSVM/ACSVM/Serial.hpp"
+#include "ACSVM/ACSVM/SerialSTD.hpp"
+#include "ACSVM/ACSVM/Error.hpp"
 #include <cstddef>
 #include <optional>
 #include <span>
 #include <string_view>
+#include <fstream>
 
 class IndexThreadInfo : public ACSVM::ThreadInfo {
 public:
@@ -205,6 +208,37 @@ public:
     void AddCodeDataACS0(ACSVM::Word code, const char* args, ACSVM::Word stackArgC, ACSVM::Word callFunc) {
         this->env.addCodeDataACS0(code, { args, stackArgC, callFunc });
     }
+    bool SaveState(char* toFile) {
+        std::ofstream file(toFile, std::ios::binary);
+        if (!file)
+            return false;
+
+        ACSVM::SerialSTD serial(file);
+        serial.saveHead();
+        this->env.saveState(serial);
+        serial.saveTail();
+        file.close();
+        return true;
+    }
+
+    bool LoadState(char* fromFile) {
+        std::ifstream file(fromFile, std::ios::binary);
+        if (!file)
+            return false;
+
+        ACSVM::SerialSTD serial(file);
+        try
+        {
+            serial.loadHead();
+            this->env.loadState(serial);
+            serial.loadTail();
+            return true;
+        }
+        catch (ACSVM::SerialError& e)
+        {
+            return false;
+        }
+    }
 };
 
 ModuleData MakeModuleData(std::size_t length) {
@@ -269,6 +303,12 @@ bool HasActiveThread(Executor *executor) {
 }
 void Exec(Executor* executor) {
     executor->Exec();
+}
+bool SaveState(Executor* executor, char* toFile) {
+    return executor->SaveState(toFile);
+}
+bool LoadState(Executor* executor, char* fromFile) {
+    return executor->LoadState(fromFile);
 }
 ACSVM::Word AddCallFunc(Executor* executor, void* funcContext, CallFunc callFunc) {
     return executor->AddCallFunc(funcContext, callFunc);

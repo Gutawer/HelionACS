@@ -290,4 +290,20 @@ public abstract class Executor {
             Interop.Methods.Exec(m_executor);
         }
     }
+    public unsafe bool SaveState(string file)
+    {
+        var fileBytes = (sbyte[])(Array)Encoding.UTF8.GetBytes(file + "\0");
+        fixed (sbyte* filename = &fileBytes[0])
+        {
+            return Interop.Methods.SaveState(m_executor, filename) != 0;
+        }
+    }
+    public unsafe bool LoadState(string file)
+    {
+        var fileBytes = (sbyte[])(Array)Encoding.UTF8.GetBytes(file + "\0");
+        fixed (sbyte* filename = &fileBytes[0])
+        {
+            return Interop.Methods.LoadState(m_executor, filename) != 0;
+        }
+    }
 }

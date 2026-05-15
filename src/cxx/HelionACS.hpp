@@ -53,6 +53,8 @@ HELIONACS_API bool ScriptPauseNum(Executor* executor, ACSVM::Word num, ACSVM::Wo
 
 HELIONACS_API bool HasActiveThread(Executor* executor);
 HELIONACS_API void Exec(Executor* executor);
+HELIONACS_API bool SaveState(Executor * executor, char* toFile);
+HELIONACS_API bool LoadState(Executor * executor, char* fromFile);
 
 using CallFunc = bool (*)(void* funcContext, ACSVM::Thread *thread, ACSVM::Word const *argv, ACSVM::Word argc);
 HELIONACS_API ACSVM::Word AddCallFunc(Executor* executor, void* funcContext, CallFunc callFunc);
