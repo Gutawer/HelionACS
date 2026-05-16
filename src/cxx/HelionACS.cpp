@@ -331,6 +331,11 @@ void GetThreadPrintBuffer(ACSVM::Thread* thread, const char** buf, std::size_t* 
     }
     *length = thread->printBuf.size();
 }
+void AppendThreadPrintBuffer(ACSVM::Thread* thread, const char* buf, std::size_t length)
+{
+    thread->printBuf.reserve(length);
+    thread->printBuf.put(buf);
+}
 void* GetThreadContext(ACSVM::Thread* thread) {
     return static_cast<const ThreadImpl*>(thread)->executorContext;
 }
@@ -339,6 +344,9 @@ std::int32_t GetThreadActivator(ACSVM::Thread* thread) {
 }
 void PushThreadStack(ACSVM::Thread *thread, ACSVM::Word value) {
     thread->dataStk.push(value);
+}
+ACSVM::Word GetThreadStack(ACSVM::Thread* thread, ACSVM::Word index) {
+    return thread->dataStk[index];
 }
 
 ACSVM::Word GetString(ACSVM::Thread* thread, ACSVM::Word index, const char** str) {

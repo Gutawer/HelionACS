@@ -32,32 +32,36 @@ public readonly ref struct ThreadHandle
         m_ptr = ptr;
     }
 
-    public void MakeTagWait(uint type, uint tag) {
-        unsafe {
-            Interop.Methods.MakeThreadTagWait(m_ptr, type, tag);
+    public unsafe void MakeTagWait(uint type, uint tag) {
+        Interop.Methods.MakeThreadTagWait(m_ptr, type, tag);
+    }
+    public unsafe string? GetPrintBuf() {
+        var buf = (sbyte*)null;
+        var length = (nuint)0;
+        Interop.Methods.GetThreadPrintBuffer(m_ptr, &buf, &length);
+        if (buf == null) {
+            return "";
+        }
+        return Marshal.PtrToStringUTF8((nint)buf, (int)length);
+    }
+    public unsafe void AppendToPrintBuf(string str)
+    {
+        var byteString = (sbyte[])(Array)Encoding.UTF8.GetBytes(str + "\0");
+        fixed (sbyte* buf = &byteString[0])
+        {
+            Interop.Methods.AppendThreadPrintBuffer(m_ptr, buf, (uint)str.Length);
         }
     }
-    public string? GetPrintBuf() {
-        unsafe {
-            var buf = (sbyte*)null;
-            var length = (nuint)0;
-            Interop.Methods.GetThreadPrintBuffer(m_ptr, &buf, &length);
-            if (buf == null) {
-                return "";
-            }
-            return Marshal.PtrToStringUTF8((nint)buf, (int)length);
-        }
+    public unsafe ThreadInfoData GetThreadInfo() {
+        var activator = Interop.Methods.GetThreadActivator(m_ptr);
+        return new ThreadInfoData(activator);
     }
-    public ThreadInfoData GetThreadInfo() {
-        unsafe {
-            var activator = Interop.Methods.GetThreadActivator(m_ptr);
-            return new ThreadInfoData(activator);
-        }
+    public unsafe void PushStack(uint value) {
+        Interop.Methods.PushThreadStack(m_ptr, value);
     }
-    public void PushStack(uint value) {
-        unsafe {
-            Interop.Methods.PushThreadStack(m_ptr, value);
-        }
+    public unsafe uint GetStack(uint index)
+    {
+        return Interop.Methods.GetThreadStack(m_ptr, index);
     }
 
     public unsafe string GetString(uint index)

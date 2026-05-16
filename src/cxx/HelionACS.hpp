@@ -60,7 +60,9 @@ HELIONACS_API void AddCodeDataACS0(Executor* executor, ACSVM::Word code, const c
 HELIONACS_API void AddFuncDataACS0(Executor* executor, ACSVM::Word code, ACSVM::Word callFunc);
 HELIONACS_API void MakeThreadTagWait(ACSVM::Thread* thread, ACSVM::Word type, ACSVM::Word tag);
 HELIONACS_API void GetThreadPrintBuffer(ACSVM::Thread* thread, const char** buf, std::size_t* length);
+HELIONACS_API void AppendThreadPrintBuffer(ACSVM::Thread* thread, const char* buf, std::size_t length);
 HELIONACS_API void* GetThreadContext(ACSVM::Thread* thread);
 HELIONACS_API std::int32_t GetThreadActivator(ACSVM::Thread* thread);
 HELIONACS_API void PushThreadStack(ACSVM::Thread* thread, ACSVM::Word value);
+HELIONACS_API ACSVM::Word GetThreadStack(ACSVM::Thread* thread, ACSVM::Word index);
 HELIONACS_API ACSVM::Word GetString(ACSVM::Thread* thread, ACSVM::Word index, const char** str);
