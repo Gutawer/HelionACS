@@ -226,10 +226,6 @@ public:
         ACSVM::SerialSTD serial(file);
         try
         {
-            std::fstream file = std::fstream("C:/Users/stlau/OneDrive/Documents/GitHub/Helion/Client/bin/Debug/net10.0/runtimes/win-x64/native/log.txt", std::ios::app);
-            file << "LoadState " << fromFile << '\n';
-            file.close();
-
             serial.loadHead();
             this->env.loadState(serial);
             serial.loadTail();
