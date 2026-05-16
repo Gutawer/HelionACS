@@ -47,8 +47,15 @@ namespace ACSVM
       void clear() {while(stkPtr != stack) (--stkPtr)->~T();}
 
       // drop
-      void drop() {(--stkPtr)->~T();}
-      void drop(std::size_t n) {while(n--) (--stkPtr)->~T();}
+      void drop() {
+          if (stkPtr <= stack)
+              return;
+          (--stkPtr)->~T();
+      }
+      void drop(std::size_t n) {
+          while (n-- && stkPtr > stack)
+              (--stkPtr)->~T();
+      }
 
       // empty
       bool empty() const {return stkPtr == stack;}
