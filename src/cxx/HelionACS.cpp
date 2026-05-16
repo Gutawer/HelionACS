@@ -19,24 +19,18 @@
 
 class IndexThreadInfo : public ACSVM::ThreadInfo {
 public:
-    void* context;
-    std::int32_t index;
-    FreeCSThreadInfoData freeCallback;
-    IndexThreadInfo(void* context, CSThreadInfo ti) : context(context), index(ti.index), freeCallback(ti.freeCallback) {}
-
-    ~IndexThreadInfo() override {
-        this->freeCallback(this->context, this->index);
-    }
+    std::int32_t activator;
+    IndexThreadInfo(CSThreadInfo ti) : activator(ti.activator) {}
 };
 
 class ThreadImpl : public ACSVM::Thread {
 private:
-    std::optional<IndexThreadInfo> info;
+    IndexThreadInfo info{ {-1} };
 
 public:
     void* executorContext;
 
-    explicit ThreadImpl(ACSVM::Environment* env, void* executorContext) : ACSVM::Thread(env), info(), executorContext(executorContext) {}
+    explicit ThreadImpl(ACSVM::Environment* env, void* executorContext) : ACSVM::Thread(env), executorContext(executorContext) {}
 
     void start(ACSVM::Script *script, ACSVM::MapScope *map, const ACSVM::ThreadInfo *info, const ACSVM::Word *argV, ACSVM::Word argC) override {
         ACSVM::Thread::start(script, map, info, argV, argC);
@@ -46,19 +40,18 @@ public:
     }
     void stop() override {
         ACSVM::Thread::stop();
-
-        this->info = std::nullopt;
+        this->info.activator = -1;
     }
     const ACSVM::ThreadInfo* getInfo() const override {
-        return &this->info.value();
+        return &this->info;
     }
     void loadState(ACSVM::Serial &in) override {
         ACSVM::Thread::loadState(in);
-        info->index = ACSVM::ReadVLN<int32_t>(in);
+        info.activator = ACSVM::ReadVLN<int32_t>(in);
     }
     void saveState(ACSVM::Serial &out) const override {
         ACSVM::Thread::saveState(out);
-        ACSVM::WriteVLN<int32_t>(out, info->index);
+        ACSVM::WriteVLN<int32_t>(out, info.activator);
     }
 };
 
@@ -146,7 +139,7 @@ public:
         auto actualInfo = ACSVM::MapScope::ScriptStartInfo {};
         actualInfo.argV = argV;
         actualInfo.argC = argC;
-        auto threadInfo = new IndexThreadInfo(env.executorContext, info);
+        auto threadInfo = new IndexThreadInfo(info);
         actualInfo.info = threadInfo;
         return actualInfo;
     }
@@ -229,6 +222,10 @@ public:
         ACSVM::SerialSTD serial(file);
         try
         {
+            std::fstream file = std::fstream("C:/Users/stlau/OneDrive/Documents/GitHub/Helion/Client/bin/Debug/net10.0/runtimes/win-x64/native/log.txt", std::ios::app);
+            file << "LoadState " << fromFile << '\n';
+            file.close();
+
             serial.loadHead();
             this->env.loadState(serial);
             serial.loadTail();
@@ -330,8 +327,8 @@ void GetThreadPrintBuffer(ACSVM::Thread* thread, const char** buf, std::size_t* 
 void* GetThreadContext(ACSVM::Thread* thread) {
     return static_cast<const ThreadImpl*>(thread)->executorContext;
 }
-std::int32_t GetThreadThreadInfoIndex(ACSVM::Thread* thread) {
-    return static_cast<const IndexThreadInfo*>(thread->getInfo())->index;
+std::int32_t GetThreadActivator(ACSVM::Thread* thread) {
+    return static_cast<const IndexThreadInfo*>(thread->getInfo())->activator;
 }
 void PushThreadStack(ACSVM::Thread *thread, ACSVM::Word value) {
     thread->dataStk.push(value);

@@ -26,10 +26,8 @@ struct Callbacks {
 class Executor;
 
 HELIONACS_API Executor* MakeExecutor(Callbacks callbacks, void* executorContext);
-using FreeCSThreadInfoData = void (*)(void* context, std::int32_t index);
 struct CSThreadInfo {
-    int32_t index;
-    FreeCSThreadInfoData freeCallback;
+    int32_t activator;
 };
 HELIONACS_API void LoadHubMap(
     Executor* executor,
@@ -62,6 +60,6 @@ HELIONACS_API void AddCodeDataACS0(Executor* executor, ACSVM::Word code, const c
 HELIONACS_API void MakeThreadTagWait(ACSVM::Thread* thread, ACSVM::Word type, ACSVM::Word tag);
 HELIONACS_API void GetThreadPrintBuffer(ACSVM::Thread* thread, const char** buf, std::size_t* length);
 HELIONACS_API void* GetThreadContext(ACSVM::Thread* thread);
-HELIONACS_API std::int32_t GetThreadThreadInfoIndex(ACSVM::Thread* thread);
+HELIONACS_API std::int32_t GetThreadActivator(ACSVM::Thread* thread);
 HELIONACS_API void PushThreadStack(ACSVM::Thread* thread, ACSVM::Word value);
 HELIONACS_API ACSVM::Word GetString(ACSVM::Thread* thread, ACSVM::Word index, const char** str);

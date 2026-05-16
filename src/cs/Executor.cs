@@ -23,9 +23,7 @@ public enum ScriptType : uint {
     Reopen      = 18,
 };
 
-public struct ThreadInfoSerialized {
-    public int Activator;
-}
+public record struct ThreadInfoData(int Activator);
 
 public readonly ref struct ThreadHandle
 {
@@ -50,12 +48,10 @@ public readonly ref struct ThreadHandle
             return Marshal.PtrToStringUTF8((nint)buf, (int)length);
         }
     }
-    public object GetThreadInfo() {
+    public ThreadInfoData GetThreadInfo() {
         unsafe {
-            var threadInfoIndex = Interop.Methods.GetThreadThreadInfoIndex(m_ptr);
-            var context = Interop.Methods.GetThreadContext(m_ptr);
-            var executor = GCHandle<Executor>.FromIntPtr((nint)context).Target;
-            return executor.m_threadInfos[threadInfoIndex];
+            var activator = Interop.Methods.GetThreadActivator(m_ptr);
+            return new ThreadInfoData(activator);
         }
     }
     public void PushStack(uint value) {
@@ -75,13 +71,10 @@ public readonly ref struct ThreadHandle
 public abstract class Executor {
     unsafe readonly protected Interop.Executor* m_executor;
     private readonly List<GCHandle> m_handles;
-    internal Dictionary<int, object> m_threadInfos;
-    private int m_nextThreadInfoIndex = 0;
 
     public Executor() {
         unsafe {
             m_handles = [];
-            m_threadInfos = [];
             var selfHandle = AddHandle(this);
             var callbacks = new Interop.Callbacks {
                 loadModuleCallback = &LoadModuleCDecl,
@@ -95,14 +88,6 @@ public abstract class Executor {
         foreach (var handle in m_handles) {
             handle.Free();
         }
-    }
-
-    public void SetThreadInfos(Dictionary<int, object> threadInfos) {
-        m_threadInfos = new(threadInfos);
-        m_nextThreadInfoIndex = m_threadInfos.Keys.Max() + 1;
-    }
-    public Dictionary<int, object> GetThreadInfos() {
-        return new(m_threadInfos);
     }
 
     protected GCHandle AddHandle(object obj) {
@@ -151,12 +136,6 @@ public abstract class Executor {
         return self.CallSpecImpl(new ThreadHandle(thread), spec, args);
     }
     public abstract uint CallSpecImpl(ThreadHandle threadHandle, uint spec, uint[] args);
-
-    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    unsafe protected static void FreeDataCallback(void* context, int index) {
-        var self = GCHandle<Executor>.FromIntPtr((nint)context).Target;
-        self.m_threadInfos.Remove(index);
-    }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     unsafe static byte GenericCallFunc(void* funcContext, Interop.Thread* thread, uint* argv, uint argc) {
@@ -209,23 +188,17 @@ public abstract class Executor {
             }
         }
     }
-    private Interop.CSThreadInfo MakeCSThreadInfo(object threadInfo) {
-        unsafe {
-            var index = m_nextThreadInfoIndex;
-            m_nextThreadInfoIndex += 1;
-            m_threadInfos[index] = threadInfo;
-            return new Interop.CSThreadInfo {
-                index = index,
-                freeCallback = &FreeDataCallback
-            };
-        }
+    private Interop.CSThreadInfo MakeCSThreadInfo(ThreadInfoData threadInfo) {
+        return new Interop.CSThreadInfo {
+            activator = threadInfo.Activator,
+        };
     }
-    public uint ScriptStartType(ScriptType type, uint[] args, object threadInfo) {
+    public uint ScriptStartType(ScriptType type, uint[] args, ThreadInfoData threadInfo) {
         unsafe { fixed (uint* argV = args) {
             return Interop.Methods.ScriptStartType(m_executor, (uint)type, argV, (nuint)args.Length, MakeCSThreadInfo(threadInfo));
         } }
     }
-    public uint ScriptStartTypeForced(ScriptType type, uint[] args, object threadInfo) {
+    public uint ScriptStartTypeForced(ScriptType type, uint[] args, ThreadInfoData threadInfo) {
         unsafe { fixed (uint* argV = args) {
             return Interop.Methods.ScriptStartTypeForced(m_executor, (uint)type, argV, (nuint)args.Length, MakeCSThreadInfo(threadInfo));
         } }
@@ -249,22 +222,22 @@ public abstract class Executor {
             }
         }
     }
-    public bool ScriptStart(string name, uint hubId, uint mapId, uint[] args, object threadInfo) {
+    public bool ScriptStart(string name, uint hubId, uint mapId, uint[] args, ThreadInfoData threadInfo) {
         unsafe { return AdaptScriptNameAndArgs(name, args, (s, a) => Interop.Methods.ScriptStartName(m_executor, (sbyte*)s, hubId, mapId, (uint*)a, (nuint)args.Length, MakeCSThreadInfo(threadInfo))) != 0; }
     }
-    public bool ScriptStart(uint num, uint hubId, uint mapId, uint[] args, object threadInfo) {
+    public bool ScriptStart(uint num, uint hubId, uint mapId, uint[] args, ThreadInfoData threadInfo) {
         unsafe { return AdaptScriptArgs(args, a => Interop.Methods.ScriptStartNum(m_executor, num, hubId, mapId, (uint*)a, (nuint)args.Length, MakeCSThreadInfo(threadInfo)) != 0); }
     }
-    public bool ScriptStartForced(string name, uint hubId, uint mapId, uint[] args, object threadInfo) {
+    public bool ScriptStartForced(string name, uint hubId, uint mapId, uint[] args, ThreadInfoData threadInfo) {
         unsafe { return AdaptScriptNameAndArgs(name, args, (s, a) => Interop.Methods.ScriptStartForcedName(m_executor, (sbyte*)s, hubId, mapId, (uint*)a, (nuint)args.Length, MakeCSThreadInfo(threadInfo))) != 0; }
     }
-    public bool ScriptStartForced(uint num, uint hubId, uint mapId, uint[] args, object threadInfo) {
+    public bool ScriptStartForced(uint num, uint hubId, uint mapId, uint[] args, ThreadInfoData threadInfo) {
         unsafe { return AdaptScriptArgs(args, a => Interop.Methods.ScriptStartForcedNum(m_executor, num, hubId, mapId, (uint*)a, (nuint)args.Length, MakeCSThreadInfo(threadInfo)) != 0); }
     }
-    public uint ScriptStartResult(string name, uint[] args, object threadInfo) {
+    public uint ScriptStartResult(string name, uint[] args, ThreadInfoData threadInfo) {
         unsafe { return AdaptScriptNameAndArgs(name, args, (s, a) => Interop.Methods.ScriptStartResultName(m_executor, (sbyte*)s, (uint*)a, (nuint)args.Length, MakeCSThreadInfo(threadInfo))); }
     }
-    public uint ScriptStartResult(uint num, uint[] args, object threadInfo) {
+    public uint ScriptStartResult(uint num, uint[] args, ThreadInfoData threadInfo) {
         unsafe { return AdaptScriptArgs(args, a => Interop.Methods.ScriptStartResultNum(m_executor, num, (uint*)a, (nuint)args.Length, MakeCSThreadInfo(threadInfo))); }
     }
     public bool ScriptStop(string name, uint hubId, uint mapId) {
