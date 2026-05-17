@@ -47,11 +47,11 @@ public:
     }
     void loadState(ACSVM::Serial &in) override {
         ACSVM::Thread::loadState(in);
-        info.activator = ACSVM::ReadVLN<int32_t>(in);
+        info.activator = (int32_t)ACSVM::ReadVLN<ACSVM::Word>(in);
     }
     void saveState(ACSVM::Serial &out) const override {
         ACSVM::Thread::saveState(out);
-        ACSVM::WriteVLN<int32_t>(out, info.activator);
+        ACSVM::WriteVLN<ACSVM::Word>(out, (ACSVM::Word)info.activator);
     }
 };
 
